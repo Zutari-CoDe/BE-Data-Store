@@ -51,7 +51,7 @@ export default function ExcelBrandingTool() {
     name: '',
     companyName: 'Zutari',
     companyInfo: 'Transforming Infrastructure',
-    logoUrl: 'logo.png',
+    logoUrl: 'Z_symbol.png',
     logoPosition: 'top-right',
     templateFile: null,
   });
@@ -852,7 +852,7 @@ export default function ExcelBrandingTool() {
             margin="normal"
             variant="outlined"
             size="small"
-            placeholder="logo.png or https://example.com/logo.png"
+            placeholder="Z_symbol.png or https://example.com/logo.png"
             helperText='Place logo in "public" folder or provide full URL'
           />
           <Box sx={{ mt: 2 }}>
