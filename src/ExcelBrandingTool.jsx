@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Container,
   TextField,
@@ -25,11 +25,13 @@ import {
   DialogActions,
   Chip,
   Divider,
+  InputAdornment,
   MenuItem,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddIcon from '@mui/icons-material/Add';
 import ExcelJS from 'exceljs';
@@ -56,7 +58,9 @@ export default function ExcelBrandingTool() {
   });
   const [docTypeFilter, setDocTypeFilter] = useState('');
   const [disciplineFilter, setDisciplineFilter] = useState('');
-  const [savePath, setSavePath] = useState('');
+  const [saveFolder, setSaveFolder] = useState('');
+  const [directoryHandle, setDirectoryHandle] = useState(null);
+  const folderInputRef = useRef(null);
 
   const docTypes = ['Report', 'Specification', 'Design', 'Analysis', 'Plan', 'Other'];
   const disciplines = [
@@ -85,6 +89,42 @@ export default function ExcelBrandingTool() {
     setMessage(msg);
     setMessageType(type);
     setTimeout(() => setMessage(''), 4000);
+  };
+
+  const handleSelectSaveFolder = async () => {
+    if (window.showDirectoryPicker) {
+      try {
+        const handle = await window.showDirectoryPicker();
+        setDirectoryHandle(handle);
+        setSaveFolder(handle.name || 'Selected folder');
+        showMessage('Folder selected. Updated files will be saved there when supported.', 'success');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Folder selection failed', error);
+          showMessage('Unable to select folder. Please try again.', 'error');
+        }
+      }
+      return;
+    }
+
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+      return;
+    }
+
+    showMessage('Folder picker is not supported by this browser.', 'error');
+  };
+
+  const handleFolderInputChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const relativePath = files[0].webkitRelativePath || files[0].name;
+    const folderName = relativePath.split('/')[0];
+    setSaveFolder(folderName || 'Selected folder');
+    setDirectoryHandle(null);
+    e.target.value = null;
+    showMessage('Folder selected via file picker fallback.', 'success');
   };
 
   const handleFileUpload = (e) => {
@@ -297,14 +337,28 @@ export default function ExcelBrandingTool() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const normalizedPrefix = savePath.trim().replace(/[^a-zA-Z0-9-_ ]+/g, '_').replace(/\s+/g, '_');
-        const downloadName = normalizedPrefix
-          ? `${normalizedPrefix}_${selectedTemplate.name.replace(/\s+/g, '_')}_${fileObj.name}`
-          : `${selectedTemplate.name.replace(/\s+/g, '_')}_${fileObj.name}`;
-        link.download = downloadName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const downloadName = `${selectedTemplate.name.replace(/\s+/g, '_')}_${fileObj.name}`;
+
+        if (directoryHandle && directoryHandle.getFileHandle) {
+          try {
+            const fileHandle = await directoryHandle.getFileHandle(downloadName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+          } catch (error) {
+            console.warn('Folder write failed, falling back to browser download', error);
+            link.download = downloadName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        } else {
+          link.download = downloadName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
         URL.revokeObjectURL(url);
 
         processedCount += 1;
@@ -488,18 +542,38 @@ export default function ExcelBrandingTool() {
               </TextField>
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Save path / prefix"
-                value={savePath}
-                onChange={(e) => setSavePath(e.target.value)}
-                variant="outlined"
-                helperText="Browser downloads usually go to your default downloads folder."
-                sx={{ minWidth: 200 }}
-              />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: '#666', fontWeight: 600 }}>
+                  Save folder
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleSelectSaveFolder}
+                  sx={{ textTransform: 'none', minWidth: 140, width: '100%' }}
+                >
+                  Choose folder
+                </Button>
+                <Typography variant="body2" sx={{ color: '#333', minHeight: '1.5rem' }}>
+                  {saveFolder || 'No folder selected'}
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Select a folder for direct output when supported by the browser.
+                </Typography>
+              </Box>
             </Grid>
           </Grid>
+
+          <input
+            ref={folderInputRef}
+            type="file"
+            webkitdirectory="true"
+            directory="true"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFolderInputChange}
+          />
 
           <Box
             sx={{
