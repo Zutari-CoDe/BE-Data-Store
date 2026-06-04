@@ -52,7 +52,7 @@ function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  backgroundImage: `url(/Z_symbol.png)`,
+                  backgroundImage: `url(${process.env.PUBLIC_URL}/Z_symbol.png)`,
                   backgroundSize: 'contain',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
