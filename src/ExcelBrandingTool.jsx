@@ -25,7 +25,6 @@ import {
   DialogActions,
   Chip,
   Divider,
-  InputAdornment,
   MenuItem,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
